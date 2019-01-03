@@ -28,8 +28,10 @@ class Summoner(object):
         self.get_most_played()# init. self.most_played
         self.raw_rank()# init. self.raw_score
         self.in_game()# init. self.is_live
+        self.past_games = self.get_past_teammates_and_opponents()
         if self.is_live == True:
             self.get_current_teammates_and_opponents()# init. self.player_team, self.opposing_team as <class> Team objects
+            self.current_champ = self.get_live_champ()
     def __str__(self):
         username = self.username
         rank = self.rank
@@ -195,7 +197,7 @@ class Summoner(object):
         #games is a list of lists of lists. The innermost list are 5 player teams, the middle list are lists containing 2, 5 player teams and the last list just contains all the previous lists.
 
         print('Collected ' + str(len(total_players)/10) +' games from this user')
-        yield from games
+        return games
         #Example of games: [[['a','b', 'c','d', 'e'],['f','g','h','i','j']]] team > game > overall list
 
     def get_current_teammates_and_opponents(self):
@@ -225,9 +227,20 @@ class Summoner(object):
             self.opposing_team = red_team
 
         return (self.player_team, self.opposing_team)
-    def get_current_champ(self):
-        current_champ = self.spectator_soup.select('div .Content td "ChampionImage.Cell a')
-        print(current_champ)
+    def get_live_champ(self):
+        players_and_champs_html = self.spectator_soup.select('div .Content a')[2:]
+        player_index = 0
+        for element in players_and_champs_html:
+            if self.username in element:
+                player_index = players_and_champs_html.index(element)
+
+        champ_html = str(players_and_champs_html[player_index-1])
+        #print(str(champ_html))
+        for champion in Summoner.champions:
+            if champion in champ_html:
+                return champion
+
+        #print(current_champ)
 class Game(object):
     def __init__(self, names):
         '''
@@ -236,26 +249,28 @@ class Game(object):
         names = [[langer, kaypop, used bread, raiinichts, longue baguette], [apoxyomenos, swisspikeman, imaqtpie, shiptur, Lil Loaf]]
         '''
 
-        team1_names = names[0]
-        team2_names = names[1]
-        self.team1_summoners = [Summoner(player) for player in team1_names]
-        self.team2_summoners = [Summoner(player) for player in team2_names]
+        self.team1_names = names[0]
+        self.team2_names = names[1]
+        self.team1_summoners = [Summoner(player) for player in self.team1_names]
+        self.team2_summoners = [Summoner(player) for player in self.team2_names]
         self.team1_raw_ranks = self.get_all_ranks()[0]
         self.team2_raw_ranks = self.get_all_ranks()[1]
         self.team1_champs = self.get_all_champions()[0]
-        self.team2_champs = self.get_champions()[1]
-        self.rank_diff = sum(team1_raw_ranks) - sum(team2_raw_ranks)
+        self.team2_champs = self.get_all_champions()[1]
+        self.rank_diff = sum(self.team1_raw_ranks) - sum(self.team2_raw_ranks) #important predictor
+
 
     def get_all_ranks(self):
         '''
         returns a tuple of the ranks of boths teams
         '''
-        team1_ranks = [player.raw_rank(player) for player in self.team1_summoners]
-        team2_ranks = [player.raw_rank(player) for player in self.team2_summoners]
+        team1_ranks = [player.raw_rank() for player in self.team1_summoners]
+        team2_ranks = [player.raw_rank() for player in self.team2_summoners]
         return team1_ranks, team2_ranks
     def get_all_champions(self):
         '''
         returns a tuple of the most played champions of boths teams
+        list of lists of each players most played champs
         '''
         team1_champs = [player.most_played for player in self.team1_summoners]
         team2_champs = [player.most_played for player in self.team2_summoners]
@@ -293,14 +308,34 @@ class Application(Frame):
 class DataCollection(object):
     def __init__(self, summoner, ):
 '''
-
-def main():
-    #while True:
+def test_function():
     username = input('Enter a League of Legends Player')
     summoner = Summoner(username)
-    print(summoner.player_team)
-    '''
     summoner_past_games = summoner.get_past_teammates_and_opponents()
+    test_game = Game(summoner_past_games[0])
+    print('Team 1: ' + str(test_game.team1_names))
+    print('Team 1 ranks: ' + str(test_game.team1_raw_ranks))
+    print('Team 1 champs: ' + str(test_game.team1_champs))
+    print()
+    print('---------------------------------')
+    print()
+    print('Team 2: ' + str(test_game.team2_names))
+    print('Team 2 ranks:' + str(test_game.team2_raw_ranks))
+    print('Team 2 champs: ' + str(test_game.team2_champs))
+def main():
+    username = input('Enter a League of Legends Player')
+    summoner = Summoner(username)
+    print(summoner.current_champ)
+    #while True:
+    
+    '''
+    cont = input('Press any key to display the next game')
+    while cont:
+        current = next(summoner_past_games)
+        current_game = Game(current)
+        print(current_game.rank_diff)
+        cont = input('Press any key to display the next game')
+
     while True:
         try:
             current = next(summoner_past_games)
