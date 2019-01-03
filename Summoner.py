@@ -258,7 +258,8 @@ class Game(object):
         self.team1_champs = self.get_all_champions()[0]
         self.team2_champs = self.get_all_champions()[1]
         self.rank_diff = sum(self.team1_raw_ranks) - sum(self.team2_raw_ranks) #important predictor
-
+        for summoner in self.team1_summoners:
+            if summoner.current
 
     def get_all_ranks(self):
         '''
