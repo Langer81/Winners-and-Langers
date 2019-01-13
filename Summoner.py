@@ -11,13 +11,15 @@ Using op.gg:
 champ_file = open('champion_list.txt','r')
 
 import requests, bs4
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
 class Summoner(object):
     champions = champ_file.read().split() #list of all league champions
     ranks = ['Bronze','Silver','Gold','Platinum','Diamond','Master','Challenger']
     def __init__(self, username):
     
         self.username = username
-        self.link = 'http://na.op.gg/summoner/userName=' + username
+        self.link = 'http://na.op.gg/summoner/userName=' + username + '#'
         self.response = requests.get(self.link)
         self.response.raise_for_status()
         self.soup = bs4.BeautifulSoup(self.response.text,'lxml')
@@ -29,6 +31,7 @@ class Summoner(object):
         self.raw_rank()# init. self.raw_score
         self.in_game()# init. self.is_live
         self.past_games = self.get_past_teammates_and_opponents()
+        self.game_urls = self.return_urls()
         if self.is_live == True:
             self.get_current_teammates_and_opponents()# init. self.player_team, self.opposing_team as <class> Team objects
             self.current_champ = self.get_live_champ()
@@ -227,6 +230,7 @@ class Summoner(object):
             self.opposing_team = red_team
 
         return (self.player_team, self.opposing_team)
+
     def get_live_champ(self):
         players_and_champs_html = self.spectator_soup.select('div .Content a')[2:]
         player_index = 0
@@ -241,6 +245,31 @@ class Summoner(object):
                 return champion
 
         #print(current_champ)
+
+    def return_urls(self):
+        ''' 
+        instead of using na.op.gg, this method will isolate all ranked games and use riot's official match history system.
+        return should be list of urls of ranked games
+        [<url1>, <url2>, etc]
+        '''
+        browser = webdriver.Firefox()
+        browser.get('https://matchhistory.na.leagueoflegends.com/en/#page/landing-page')
+        search_box = browser.find_element_by_id('player-search-6-name')
+        search_box.send_keys(self.username)
+        search_box.send_keys(Keys.ENTER)
+        print(browser.current_url)
+        browser.forward()
+        drop_down_menu = browser.find_element_by_name('mode')
+        drop_down_menu.click()
+        drop_down_menu.send_keys('r')
+        drop_down_menu.click()
+        go_button = browser.find_element_by_tag_name('button')
+        go_button.click()
+        games = browser.find_elements_by_class_name('game-summary')
+        #games is a list of webdriver elements
+        game_urls = [game.current_url for game in games]
+        return game_urls
+
 class Game(object):
     def __init__(self, names):
         '''
@@ -258,9 +287,10 @@ class Game(object):
         self.team1_champs = self.get_all_champions()[0]
         self.team2_champs = self.get_all_champions()[1]
         self.rank_diff = sum(self.team1_raw_ranks) - sum(self.team2_raw_ranks) #important predictor
+        '''
         for summoner in self.team1_summoners:
             if summoner.current
-
+        '''
     def get_all_ranks(self):
         '''
         returns a tuple of the ranks of boths teams
@@ -326,7 +356,7 @@ def test_function():
 def main():
     username = input('Enter a League of Legends Player')
     summoner = Summoner(username)
-    print(summoner.current_champ)
+    print(summoner.game_urls)
     #while True:
     
     '''
